@@ -2004,12 +2004,12 @@ function mergeBabyStates(local, remote) {
   ]);
 
   const isRealMode = local.isDemo === false || remote.isDemo === false;
-  const demoIdPattern = /_-?\d+_(f|d|j|s|g|c)\d*$/;
+  const demoIdPattern = /^rec_.*_-?[0-6]_(f|d|j|s|g|c)\d*$/;
 
   const recordMap = new Map();
   [...(remote.records || []), ...(local.records || [])].forEach(r => {
     if (r && r.id && !deletedSet.has(r.id)) {
-      if (isRealMode && demoIdPattern.test(r.id)) return; // 自动剔除虚拟演示数据
+      if (isRealMode && !r.id.startsWith('real_') && demoIdPattern.test(r.id)) return; // 仅剔除 rec_ 开头的虚拟演示数据
       recordMap.set(r.id, r);
     }
   });
