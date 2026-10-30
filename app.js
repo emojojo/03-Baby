@@ -1873,6 +1873,9 @@ function getCloudConfig() {
   return null;
 }
 
+// 家庭 4 位口令加密密文（不含明文 Token，仅输入正确口令可解出）
+const FAMILY_ENC_BYTES = [86, 88, 66, 103, 95, 73, 104, 123, 0, 4, 68, 13, 64, 118, 95, 66, 85, 100, 95, 117, 1, 99, 72, 113, 71, 115, 119, 115, 72, 125, 0, 122, 123, 89, 6, 98, 107, 94, 84, 73];
+
 function checkUrlSyncPairing() {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -1883,13 +1886,39 @@ function checkUrlSyncPairing() {
       if (cfg && cfg.owner && cfg.repo && cfg.token) {
         if (cfg.repo === '03-Baby') cfg.repo = '03-Baby-Private';
         localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cfg));
-        // 清除地址栏中的敏感参数，保护 Token 安全
-        window.history.replaceState({}, document.title, window.location.pathname);
+        // 保留地址栏参数，确保在 iOS/iPadOS Safari 点击“添加到主屏幕”时书签完整带上配对信息
         setTimeout(() => showToast('🎉 家庭私有云同步配对成功！正在拉取宝宝数据...'), 400);
       }
     }
   } catch (e) {
     console.warn('解析同步链接失败', e);
+  }
+}
+
+async function unlockByFamilyPin() {
+  const pinInput = document.getElementById('familyQuickPin');
+  const pin = (pinInput ? pinInput.value.trim() : '');
+  if (!pin) {
+    alert('请输入 4 位家庭口令（例如宝宝生日 1028）');
+    return;
+  }
+  const decodedToken = FAMILY_ENC_BYTES.map((b, i) => String.fromCharCode(b ^ pin.charCodeAt(i % pin.length))).join('');
+  if (!decodedToken.startsWith('ghp_')) {
+    alert('口令不正确，请输入正确的 4 位家庭口令（提示：宝宝生日 1028）');
+    return;
+  }
+  const cfg = {
+    owner: 'emojojo',
+    repo: '03-Baby-Private',
+    token: decodedToken,
+    branch: 'main'
+  };
+  localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cfg));
+  updateCloudSyncHeaderUI('🔄 正在连接云端...');
+  const ok = await syncWithGitHubCloud(false);
+  if (ok) {
+    closeCloudSyncModal();
+    showToast('🎉 iPad/手机家庭云同步已激活！已拉取最新宝宝记录！');
   }
 }
 
