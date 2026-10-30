@@ -1857,7 +1857,14 @@ function getCloudConfig() {
     const raw = localStorage.getItem(CLOUD_CFG_KEY);
     if (!raw) return null;
     const cfg = JSON.parse(raw);
-    if (cfg && cfg.owner && cfg.repo && cfg.token) return cfg;
+    if (cfg && cfg.owner && cfg.repo && cfg.token) {
+      // 自动将数据仓库指向 100% 私有的 03-Baby-Private，确保宝宝数据绝不公开
+      if (cfg.repo === '03-Baby') {
+        cfg.repo = '03-Baby-Private';
+        localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cfg));
+      }
+      return cfg;
+    }
   } catch (e) {}
   return null;
 }
@@ -1870,10 +1877,11 @@ function checkUrlSyncPairing() {
       const jsonStr = decodeURIComponent(escape(atob(syncKey)));
       const cfg = JSON.parse(jsonStr);
       if (cfg && cfg.owner && cfg.repo && cfg.token) {
+        if (cfg.repo === '03-Baby') cfg.repo = '03-Baby-Private';
         localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cfg));
         // 清除地址栏中的敏感参数，保护 Token 安全
         window.history.replaceState({}, document.title, window.location.pathname);
-        setTimeout(() => showToast('🎉 家庭云端同步配对成功！正在拉取宝宝数据...'), 400);
+        setTimeout(() => showToast('🎉 家庭私有云同步配对成功！正在拉取宝宝数据...'), 400);
       }
     }
   } catch (e) {
@@ -1903,13 +1911,10 @@ function updateCloudSyncHeaderUI(statusText = null) {
 
 function openCloudSyncModal() {
   const cfg = getCloudConfig();
-  // 如果运行在 github.io，自动推断用户名和仓库名
   let defaultOwner = 'emojojo';
-  let defaultRepo = '03-Baby';
+  let defaultRepo = '03-Baby-Private';
   if (window.location.hostname.endsWith('.github.io')) {
     defaultOwner = window.location.hostname.split('.')[0];
-    const pathSeg = window.location.pathname.split('/').filter(Boolean)[0];
-    if (pathSeg) defaultRepo = pathSeg;
   }
 
   document.getElementById('cloudOwner').value = (cfg && cfg.owner) || defaultOwner;
@@ -1961,7 +1966,7 @@ function copyFamilyShareLink() {
   const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
   let baseUrl = `${window.location.origin}${window.location.pathname}`;
   if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
-    baseUrl = `https://${cfg.owner}.github.io/${cfg.repo}/`;
+    baseUrl = `https://${cfg.owner}.github.io/03-Baby/`;
   }
   const inviteUrl = `${baseUrl}?sync_key=${encodeURIComponent(encoded)}`;
   navigator.clipboard.writeText(inviteUrl).then(() => {
