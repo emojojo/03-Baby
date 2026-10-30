@@ -1873,9 +1873,6 @@ function getCloudConfig() {
   return null;
 }
 
-// 家庭 4 位口令加密密文（不含明文 Token，仅输入正确口令可解出）
-const FAMILY_ENC_BYTES = [86, 88, 66, 104, 95, 73, 104, 116, 0, 4, 68, 2, 64, 118, 95, 77, 85, 100, 95, 122, 1, 99, 72, 126, 71, 115, 119, 124, 72, 125, 0, 117, 123, 89, 6, 109, 107, 94, 84, 70];
-
 function checkUrlSyncPairing() {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -1892,33 +1889,6 @@ function checkUrlSyncPairing() {
     }
   } catch (e) {
     console.warn('解析同步链接失败', e);
-  }
-}
-
-async function unlockByFamilyPin() {
-  const pinInput = document.getElementById('familyQuickPin');
-  const pin = (pinInput ? pinInput.value.trim() : '');
-  if (!pin) {
-    alert('请输入 4 位家庭口令');
-    return;
-  }
-  const decodedToken = FAMILY_ENC_BYTES.map((b, i) => String.fromCharCode(b ^ pin.charCodeAt(i % pin.length))).join('');
-  if (!decodedToken.startsWith('ghp_')) {
-    alert('口令不正确，请重新输入 4 位家庭口令');
-    return;
-  }
-  const cfg = {
-    owner: 'emojojo',
-    repo: '03-Baby-Private',
-    token: decodedToken,
-    branch: 'main'
-  };
-  localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cfg));
-  updateCloudSyncHeaderUI('🔄 正在连接云端...');
-  const ok = await syncWithGitHubCloud(false);
-  if (ok) {
-    closeCloudSyncModal();
-    showToast('🎉 iPad/手机家庭云同步已激活！已拉取最新宝宝记录！');
   }
 }
 
