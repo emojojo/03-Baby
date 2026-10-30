@@ -68,6 +68,13 @@
             <span class="pill-value" id="latestJaundicePill">--</span>
           </div>
         </div>
+        <div class="status-pill lavender" onclick="openRecordModal('care')" style="cursor:pointer" title="点击打卡维生素 D3 / AD / K1">
+          <span class="pill-icon">💊</span>
+          <div>
+            <span class="pill-label">今日维生素 (D3/AD/K1)</span>
+            <span class="pill-value" id="todayVitaminsPill">待打卡</span>
+          </div>
+        </div>
       </div>
 
       <!-- Header Utility Buttons -->
@@ -127,8 +134,8 @@
       <button class="quick-card-btn care" onclick="openRecordModal('care')">
         <div class="quick-icon">💊</div>
         <div class="quick-text">
-          <h3>护理与大事记</h3>
-          <p>维D3 / 脐带 / 洗澡 / 疫苗</p>
+          <h3>维生素与护理</h3>
+          <p>维D3 / 维AD / 维K1 / 脐带 / 洗澡</p>
         </div>
       </button>
     </section>
@@ -375,6 +382,14 @@
             <h5 style="color: var(--candy-pink-dark);">🍼 智能奶量计算器（按当前体重）</h5>
             <p id="smartMilkGuideText">
               正在根据宝宝体重计算每日推荐总奶量与单次奶量...
+            </p>
+          </div>
+
+          <div class="guide-card" style="background: var(--candy-lavender-soft); border-color: #DDD6FE; margin-bottom:12px;">
+            <h5 style="color: var(--candy-lavender-dark);">💊 新生儿维生素补充贴士 (D3 / AD / K1)</h5>
+            <p>
+              • <strong>🩸 维生素 K1</strong>：预防新生儿维生素K缺乏性出血症（纯母乳宝宝尤为重要，按医院医嘱定期口服滴剂或肌注）。<br/>
+              • <strong>☀️ 维生素 D3 & 💧 维生素 AD</strong>：促进钙吸收与视网膜/免疫发育（通常每日1次，若当天已喂含充足D3的复合AD，一般不重复叠加同日过量D3，可按儿保医嘱每日或单双日交替服用）。
             </p>
           </div>
 

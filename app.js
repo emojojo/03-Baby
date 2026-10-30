@@ -39,10 +39,12 @@ let liveTimer = {
 
 // 必做护理清单定义
 const CARE_CHECKLIST_ITEMS = [
-  { id: 'vd3', icon: '☀️', label: '喂维生素 D3 (400IU)' },
-  { id: 'jaundice_am', icon: '🌞', label: '早间黄疸测量' },
-  { id: 'cord', icon: '🌿', label: '肚脐碘伏消毒护理' },
-  { id: 'bath', icon: '🛁', label: '温水洗澡 & 婴儿抚触' },
+  { id: 'vd3', icon: '☀️', label: '喂维生素 D3 (400IU)', recordTitle: '☀️ 补充维生素 D3 (400IU)' },
+  { id: 'vad', icon: '💧', label: '喂维生素 AD (1粒)', recordTitle: '💧 补充维生素 AD (1粒)' },
+  { id: 'vk1', icon: '🩸', label: '喂维生素 K1 (预防出血)', recordTitle: '🩸 补充维生素 K1 (滴剂/口服)' },
+  { id: 'jaundice_am', icon: '🌞', label: '早晚黄疸测量' },
+  { id: 'cord', icon: '🌿', label: '肚脐碘伏消毒护理', recordTitle: '🌿 肚脐碘伏消毒护理' },
+  { id: 'bath', icon: '🛁', label: '温水洗澡 & 婴儿抚触', recordTitle: '🛁 温水洗澡 + 抚触按摩' },
   { id: 'butt', icon: '🍑', label: '晾屁屁 / 涂护臀膏' },
   { id: 'tummy', icon: '🐣', label: '抬头 / 趴趴练习' }
 ];
@@ -118,6 +120,8 @@ function generateDemoData() {
 
     dailyChecklist[dateKey] = {
       vd3: true,
+      vad: cfg.dayOffset % 2 === 0,
+      vk1: cfg.dayOffset === -6 || cfg.dayOffset === 0,
       jaundice_am: true,
       cord: true,
       bath: cfg.dayOffset !== -5,
@@ -525,6 +529,25 @@ function updateLiveHeaderPills() {
   } else {
     jPill.textContent = '未测量';
   }
+
+  // 4. 今日维生素 (D3 / AD / K1) 打卡状态
+  const vitPill = document.getElementById('todayVitaminsPill');
+  if (vitPill) {
+    const todayStr = toLocalDateStr(new Date());
+    const dayMap = (appState.dailyChecklist && appState.dailyChecklist[todayStr]) || {};
+    const todayCareRecs = appState.records.filter(
+      r => r.category === 'care' && r.timestamp && r.timestamp.startsWith(todayStr)
+    );
+    const hasD3 = !!dayMap.vd3 || todayCareRecs.some(r => (r.careItem || '').toUpperCase().includes('D3'));
+    const hasAD = !!dayMap.vad || todayCareRecs.some(r => (r.careItem || '').toUpperCase().includes('AD'));
+    const hasK1 = !!dayMap.vk1 || todayCareRecs.some(r => (r.careItem || '').toUpperCase().includes('K1'));
+
+    const parts = [];
+    if (hasD3) parts.push('D3✓');
+    if (hasAD) parts.push('AD✓');
+    if (hasK1) parts.push('K1✓');
+    vitPill.textContent = parts.length > 0 ? parts.join(' ') : '今日待喂';
+  }
 }
 
 // ============================================================================
@@ -639,11 +662,30 @@ async function toggleChecklistItem(itemId) {
   if (!appState.dailyChecklist[todayStr]) {
     appState.dailyChecklist[todayStr] = {};
   }
-  appState.dailyChecklist[todayStr][itemId] = !appState.dailyChecklist[todayStr][itemId];
+  const newState = !appState.dailyChecklist[todayStr][itemId];
+  appState.dailyChecklist[todayStr][itemId] = newState;
+
+  const item = CARE_CHECKLIST_ITEMS.find(i => i.id === itemId);
+  // 如果勾选了维生素 D3 / AD / K1 等护理项，且今日时间轴尚未记录，则自动写入一条带时间的记录
+  if (newState && item && item.recordTitle) {
+    const keyword = itemId === 'vd3' ? 'D3' : itemId === 'vad' ? 'AD' : itemId === 'vk1' ? 'K1' : item.label.slice(0, 2);
+    const alreadyLogged = appState.records.some(
+      r => r.category === 'care' && r.timestamp && r.timestamp.startsWith(todayStr) && (r.careItem || '').includes(keyword)
+    );
+    if (!alreadyLogged) {
+      appState.records.unshift({
+        id: uid(),
+        category: 'care',
+        timestamp: toDateTimeLocalStr(new Date()),
+        careItem: item.recordTitle,
+        note: '通过今日必做护理清单快捷打卡'
+      });
+    }
+  }
+
   await persistState();
-  renderDailyChecklist();
-  if (appState.dailyChecklist[todayStr][itemId]) {
-    const item = CARE_CHECKLIST_ITEMS.find(i => i.id === itemId);
+  renderAll();
+  if (newState && item) {
     showToast(`✅ 已完成打卡：${item.label}`);
   }
 }
@@ -1441,24 +1483,80 @@ function switchModalCategory(cat, prefill = {}) {
   } else if (cat === 'care') {
     box.innerHTML = `
       <div class="form-group">
-        <label>选择护理项目或成长里程碑</label>
+        <label>💊 维生素快捷选择（点击一键填入）</label>
+        <div class="pill-selector" style="margin-bottom:10px;">
+          <button type="button" class="pill-option selected" onclick="selectCareQuick(this, '☀️ 补充维生素 D3 (400IU)')">☀️ 维生素 D3 (400IU)</button>
+          <button type="button" class="pill-option" onclick="selectCareQuick(this, '💧 补充维生素 AD (1粒)')">💧 维生素 AD (1粒)</button>
+          <button type="button" class="pill-option" onclick="selectCareQuick(this, '🩸 补充维生素 K1 (滴剂/口服)')">🩸 维生素 K1</button>
+          <button type="button" class="pill-option" onclick="selectCareQuick(this, '☀️ 维生素 D3 + 🩸 维生素 K1')">☀️+🩸 D3 + K1 同服</button>
+          <button type="button" class="pill-option" onclick="selectCareQuick(this, '💧 维生素 AD + 🩸 维生素 K1')">💧+🩸 AD + K1 同服</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>护理项目或成长里程碑名称（可自由修改）</label>
         <input type="text" id="c_careItem" class="form-input" value="☀️ 补充维生素 D3 (400IU)" required />
-        <div class="preset-chips" style="margin-top:10px;">
+        <div class="preset-chips" style="margin-top:8px;">
           ${[
-            '☀️ 补充维生素 D3 (400IU)',
-            '💧 补充维生素 AD',
             '🌿 肚脐碘伏消毒护理',
             '🎊 肚脐自然脱落啦！',
             '🛁 温水洗澡 + 抚触按摩',
             '🌞 晒太阳退黄 (15分钟)',
+            '🦠 补充益生菌',
+            '🍑 涂护臀膏 / 晾屁屁',
             '💉 接种乙肝疫苗 / 卡介苗',
             '😊 第一次对爸爸妈妈微笑'
           ].map(tag =>
-            `<span class="preset-chip" onclick="document.getElementById('c_careItem').value='${tag}'">${tag}</span>`
+            `<span class="preset-chip" onclick="selectCareQuick(null, '${tag}')">${tag}</span>`
           ).join('')}
         </div>
       </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>服用剂量 / 规格</label>
+          <select id="c_careDosage" class="form-select">
+            <option value="1粒 / 标准剂量">💊 1粒 / 标准剂量</option>
+            <option value="400 IU">☀️ 400 IU (D3标准量)</option>
+            <option value="1滴 / 2mg (K1)">🩸 1滴 / 2mg (维生素K1)</option>
+            <option value="1支 / 医嘱剂量">💧 1支 / 按医嘱剂量</option>
+            <option value="日常护理">✨ 日常护理 (非服药)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>喂服 / 护理方式</label>
+          <select id="c_careMethod" class="form-select">
+            <option value="直接滴入口中">👄 剪开胶囊直接滴入口中</option>
+            <option value="滴在乳头/奶嘴上吸吮">🍼 滴在乳头/奶嘴上吸吮</option>
+            <option value="混入少量奶液喂服">🥄 混入少量奶液/小勺喂服</option>
+            <option value="医院肌注/门诊">🏥 医院门诊/肌注</option>
+            <option value="居家外用护理">🏠 居家外用/日常护理</option>
+          </select>
+        </div>
+      </div>
     `;
+  }
+}
+
+function selectCareQuick(btn, textVal) {
+  document.getElementById('c_careItem').value = textVal;
+  if (btn && btn.parentElement) {
+    btn.parentElement.querySelectorAll('.pill-option').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
+  const dosageEl = document.getElementById('c_careDosage');
+  const methodEl = document.getElementById('c_careMethod');
+  if (dosageEl && methodEl) {
+    if (textVal.includes('K1') && !textVal.includes('D3') && !textVal.includes('AD')) {
+      dosageEl.value = '1滴 / 2mg (K1)';
+    } else if (textVal.includes('D3') && !textVal.includes('AD')) {
+      dosageEl.value = '400 IU';
+    } else if (textVal.includes('AD')) {
+      dosageEl.value = '1粒 / 标准剂量';
+    } else if (!textVal.includes('维生素')) {
+      dosageEl.value = '日常护理';
+      methodEl.value = '居家外用护理';
+    }
   }
 }
 
@@ -1534,6 +1632,22 @@ async function submitRecordForm(e) {
     rec.headCm = Number(document.getElementById('g_headCm').value) || 0;
   } else if (currentModalCategory === 'care') {
     rec.careItem = document.getElementById('c_careItem').value.trim();
+    const dosage = document.getElementById('c_careDosage') ? document.getElementById('c_careDosage').value : '';
+    const method = document.getElementById('c_careMethod') ? document.getElementById('c_careMethod').value : '';
+    if (dosage && dosage !== '日常护理') {
+      rec.note = [ `${dosage} · ${method}`, rec.note ].filter(Boolean).join(' | ');
+    }
+    // 自动同步勾选对应日期的必做护理打卡清单
+    const recDateStr = (rec.timestamp || '').slice(0, 10);
+    if (recDateStr) {
+      if (!appState.dailyChecklist[recDateStr]) appState.dailyChecklist[recDateStr] = {};
+      const upper = rec.careItem.toUpperCase();
+      if (upper.includes('D3')) appState.dailyChecklist[recDateStr].vd3 = true;
+      if (upper.includes('AD')) appState.dailyChecklist[recDateStr].vad = true;
+      if (upper.includes('K1')) appState.dailyChecklist[recDateStr].vk1 = true;
+      if (upper.includes('肚脐')) appState.dailyChecklist[recDateStr].cord = true;
+      if (upper.includes('洗澡')) appState.dailyChecklist[recDateStr].bath = true;
+    }
   }
 
   appState.records.unshift(rec);
