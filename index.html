@@ -2,7 +2,11 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="糖果宝宝" />
+  <meta name="theme-color" content="#FFF9F5" />
   <title>糖果宝宝 · 新生儿全能成长与健康看板</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -68,10 +72,12 @@
 
       <!-- Header Utility Buttons -->
       <div class="header-actions">
+        <button class="btn btn-pink btn-sm" id="cloudSyncHeaderBtn" onclick="openCloudSyncModal()">☁️ 家庭云同步: 未开启</button>
+        <button class="btn btn-soft btn-sm" onclick="manualCloudPull()" id="cloudRefreshBtn" style="display:none;" title="立即从云端拉取家人最新记录">🔄 立即同步</button>
         <button class="btn btn-soft btn-sm" onclick="openProfileModal()">⚙️ 宝宝设置</button>
-        <button class="btn btn-soft btn-sm" onclick="exportCSV()">📊 导出Excel(CSV)</button>
-        <button class="btn btn-soft btn-sm" onclick="exportJSON()">💾 备份数据</button>
-        <button class="btn btn-soft btn-sm" onclick="document.getElementById('importFileInput').click()">📂 导入恢复</button>
+        <button class="btn btn-soft btn-sm" onclick="exportCSV()">📊 导出Excel</button>
+        <button class="btn btn-soft btn-sm" onclick="exportJSON()">💾 备份</button>
+        <button class="btn btn-soft btn-sm" onclick="document.getElementById('importFileInput').click()">📂 导入</button>
         <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importJSON(event)" />
       </div>
     </header>
@@ -488,6 +494,64 @@
         <div style="display:flex; gap:10px; margin-top:20px;">
           <button type="button" class="btn btn-soft" style="flex:1" onclick="closeProfileModal()">取消</button>
           <button type="submit" class="btn btn-pink" style="flex:2">💖 保存档案</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. Family Cloud Sync Modal (GitHub Cloud DB) -->
+  <div class="modal-backdrop" id="cloudSyncModalBackdrop" onclick="if(event.target===this) closeCloudSyncModal()">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>☁️ 家庭多端实时云同步设置</h3>
+        <button class="modal-close" onclick="closeCloudSyncModal()">✕</button>
+      </div>
+
+      <div class="guide-card" style="margin-top:0; margin-bottom:16px; background:var(--candy-sky-soft); border-color:#BAE6FD;">
+        <h5 style="color:var(--candy-sky-dark);">👨‍👩‍👧 家人手机如何同步？</h5>
+        <p>
+          开启后，所有喂奶、换尿布、黄疸等记录会自动加密同步到你的 <strong>GitHub 云端仓库</strong>。<br/>
+          配置好后点击下方 <strong>「📲 复制家人一键同步专属链接」</strong> 发到家庭微信群，家人点开链接即可自动完成配对，全家人手机随时随地（Wi-Fi / 5G）实时共享同一份宝宝记录！
+        </p>
+      </div>
+
+      <form onsubmit="saveCloudSyncForm(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label>GitHub 用户名 (Owner)</label>
+            <input type="text" id="cloudOwner" class="form-input" value="emojojo" placeholder="例如: emojojo" required />
+          </div>
+          <div class="form-group">
+            <label>GitHub 仓库名 (Repo)</label>
+            <input type="text" id="cloudRepo" class="form-input" value="03-Baby" placeholder="例如: 03-Baby" required />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>🔑 GitHub 同步令牌 (Personal Access Token)</label>
+          <input type="password" id="cloudToken" class="form-input" placeholder="粘贴 ghp_ 或 github_pat_ 开头的 Token" required />
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">
+            提示：Token 仅保存在你和家人手机本地浏览器中，不会上传到任何第三方。
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>分支名 (Branch)</label>
+          <input type="text" id="cloudBranch" class="form-input" value="main" required />
+        </div>
+
+        <div id="cloudShareBox" style="display:none; background:var(--candy-pink-soft); border:1.5px dashed #FF9EBB; border-radius:14px; padding:12px; margin-bottom:14px;">
+          <div style="font-size:0.82rem; font-weight:800; color:var(--candy-pink-dark); margin-bottom:6px;">
+            🎁 家人免配置一键配对链接：
+          </div>
+          <button type="button" class="btn btn-mint btn-sm" style="width:100%;" onclick="copyFamilyShareLink()">
+            📲 复制「家人一键同步专属链接」（发给家人微信即可）
+          </button>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:16px;">
+          <button type="button" class="btn btn-soft" onclick="disableCloudSync()">停用云同步</button>
+          <button type="submit" class="btn btn-pink" style="flex:1">☁️ 保存并立即连接云端</button>
         </div>
       </form>
     </div>

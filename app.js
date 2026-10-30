@@ -3,10 +3,13 @@
 // ============================================================================
 
 const STORAGE_KEY = 'candy_baby_tracker_v1';
+const CLOUD_CFG_KEY = 'candy_baby_cloud_cfg_v1';
 
 // 全局状态
 let appState = {
   isDemo: true,
+  updatedAt: Date.now(),
+  deletedIds: [],
   profile: {
     name: '小糖果',
     gender: 'girl',
@@ -250,21 +253,24 @@ function generateDemoData() {
 }
 
 // ============================================================================
-// 2. 数据加载、保存与本地 Python 服务端同步
+// 2. 数据加载、保存与本地 / GitHub 云端多端同步
 // ============================================================================
 async function initApp() {
+  // 0. 检查是否有家人一键配对链接参数 ?sync_key=...
+  checkUrlSyncPairing();
+
   // 1. 尝试从服务端加载（如果通过 server.py 启动）
   let loaded = null;
   try {
     const res = await fetch('/api/data', { cache: 'no-store' });
     if (res.ok) {
       const serverData = await res.json();
-      if (serverData && Array.isArray(serverData.records) && serverData.records.length > 0) {
+      if (serverData && Array.isArray(serverData.records)) {
         loaded = serverData;
       }
     }
   } catch (e) {
-    // 静态打开模式，忽略网络错误
+    // 静态打开或 GitHub Pages 模式，继续尝试本地缓存或直接读取仓库 data/baby_data.json
   }
 
   // 2. 尝试从 localStorage 加载
@@ -284,10 +290,10 @@ async function initApp() {
 
   // 3. 若无数据则初始化 7 天演示数据
   if (loaded) {
-    appState = loaded;
+    appState = { deletedIds: [], updatedAt: Date.now(), ...loaded };
   } else {
     appState = generateDemoData();
-    await persistState();
+    await persistState(false);
   }
 
   // 初始化日期选择器为今天
@@ -295,14 +301,35 @@ async function initApp() {
   const rhythmDateEl = document.getElementById('rhythmDateInput');
   if (rhythmDateEl) rhythmDateEl.value = todayStr;
 
+  updateCloudSyncHeaderUI();
   renderAll();
 
-  // 每30秒刷新一次“距离上次喂奶/换尿布”实时时间
-  setInterval(updateLiveHeaderPills, 30000);
+  // 4. 如果已配置家庭 GitHub 云同步，启动时立即拉取并合并云端最新数据
+  if (getCloudConfig()) {
+    await syncWithGitHubCloud(false);
+  }
+
+  // 每30秒刷新实时时间，并在开启云同步时自动拉取家人最新记录
+  setInterval(() => {
+    updateLiveHeaderPills();
+    if (getCloudConfig()) {
+      syncWithGitHubCloud(false, true);
+    }
+  }, 30000);
+
+  // 手机解锁或切回网页标签时立即同步一次
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && getCloudConfig()) {
+      syncWithGitHubCloud(false, true);
+    }
+  });
 }
 
-async function persistState() {
+async function persistState(pushToCloud = true) {
+  appState.updatedAt = Date.now();
+  if (!Array.isArray(appState.deletedIds)) appState.deletedIds = [];
   appState.records.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
   } catch (e) {
@@ -319,6 +346,11 @@ async function persistState() {
   } catch (e) {
     // 纯静态环境忽略
   }
+
+  // 同步到 GitHub 家庭云端仓库
+  if (pushToCloud && getCloudConfig()) {
+    await syncWithGitHubCloud(true);
+  }
 }
 
 async function loadDemoData(showAlert = false) {
@@ -333,8 +365,11 @@ async function clearForRealBaby() {
     return;
   }
   const now = new Date();
+  const prevDeleted = (appState.records || []).map(r => r.id);
   appState = {
     isDemo: false,
+    updatedAt: Date.now(),
+    deletedIds: prevDeleted,
     profile: {
       name: appState.profile.name || '我家宝宝',
       gender: appState.profile.gender || 'girl',
@@ -1157,6 +1192,8 @@ function formatRecordDisplay(r) {
 }
 
 async function deleteRecord(id) {
+  if (!Array.isArray(appState.deletedIds)) appState.deletedIds = [];
+  if (!appState.deletedIds.includes(id)) appState.deletedIds.push(id);
   appState.records = appState.records.filter(r => r.id !== id);
   await persistState();
   renderAll();
@@ -1694,6 +1731,264 @@ function showToast(msg) {
   t.classList.add('show');
   clearTimeout(window._toastTimer);
   window._toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ============================================================================
+// 12. 家庭多端 GitHub 云端同步引擎（支持多部手机记录级无冲突自动合并）
+// ============================================================================
+let isCloudSyncing = false;
+
+function getCloudConfig() {
+  try {
+    const raw = localStorage.getItem(CLOUD_CFG_KEY);
+    if (!raw) return null;
+    const cfg = JSON.parse(raw);
+    if (cfg && cfg.owner && cfg.repo && cfg.token) return cfg;
+  } catch (e) {}
+  return null;
+}
+
+function checkUrlSyncPairing() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const syncKey = params.get('sync_key');
+    if (syncKey) {
+      const jsonStr = decodeURIComponent(escape(atob(syncKey)));
+      const cfg = JSON.parse(jsonStr);
+      if (cfg && cfg.owner && cfg.repo && cfg.token) {
+        localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cfg));
+        // 清除地址栏中的敏感参数，保护 Token 安全
+        window.history.replaceState({}, document.title, window.location.pathname);
+        setTimeout(() => showToast('🎉 家庭云端同步配对成功！正在拉取宝宝数据...'), 400);
+      }
+    }
+  } catch (e) {
+    console.warn('解析同步链接失败', e);
+  }
+}
+
+function updateCloudSyncHeaderUI(statusText = null) {
+  const btn = document.getElementById('cloudSyncHeaderBtn');
+  const refreshBtn = document.getElementById('cloudRefreshBtn');
+  const shareBox = document.getElementById('cloudShareBox');
+  if (!btn) return;
+
+  const cfg = getCloudConfig();
+  if (!cfg) {
+    btn.textContent = '☁️ 家庭云同步: 未开启';
+    btn.className = 'btn btn-pink btn-sm';
+    if (refreshBtn) refreshBtn.style.display = 'none';
+    if (shareBox) shareBox.style.display = 'none';
+  } else {
+    btn.textContent = statusText || `🟢 云端已连接 (${cfg.repo})`;
+    btn.className = 'btn btn-mint btn-sm';
+    if (refreshBtn) refreshBtn.style.display = 'inline-flex';
+    if (shareBox) shareBox.style.display = 'block';
+  }
+}
+
+function openCloudSyncModal() {
+  const cfg = getCloudConfig();
+  // 如果运行在 github.io，自动推断用户名和仓库名
+  let defaultOwner = 'emojojo';
+  let defaultRepo = '03-Baby';
+  if (window.location.hostname.endsWith('.github.io')) {
+    defaultOwner = window.location.hostname.split('.')[0];
+    const pathSeg = window.location.pathname.split('/').filter(Boolean)[0];
+    if (pathSeg) defaultRepo = pathSeg;
+  }
+
+  document.getElementById('cloudOwner').value = (cfg && cfg.owner) || defaultOwner;
+  document.getElementById('cloudRepo').value = (cfg && cfg.repo) || defaultRepo;
+  document.getElementById('cloudToken').value = (cfg && cfg.token) || '';
+  document.getElementById('cloudBranch').value = (cfg && cfg.branch) || 'main';
+
+  const shareBox = document.getElementById('cloudShareBox');
+  if (shareBox) shareBox.style.display = cfg ? 'block' : 'none';
+
+  document.getElementById('cloudSyncModalBackdrop').classList.add('open');
+}
+
+function closeCloudSyncModal() {
+  document.getElementById('cloudSyncModalBackdrop').classList.remove('open');
+}
+
+async function saveCloudSyncForm(e) {
+  e.preventDefault();
+  const cfg = {
+    owner: document.getElementById('cloudOwner').value.trim(),
+    repo: document.getElementById('cloudRepo').value.trim(),
+    token: document.getElementById('cloudToken').value.trim(),
+    branch: document.getElementById('cloudBranch').value.trim() || 'main'
+  };
+  localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cfg));
+  updateCloudSyncHeaderUI('🔄 正在连接云端...');
+
+  const ok = await syncWithGitHubCloud(true);
+  if (ok) {
+    document.getElementById('cloudShareBox').style.display = 'block';
+    showToast('☁️ 家庭云端同步已打通！可复制专属链接发给家人啦！');
+  }
+}
+
+function disableCloudSync() {
+  localStorage.removeItem(CLOUD_CFG_KEY);
+  updateCloudSyncHeaderUI();
+  closeCloudSyncModal();
+  showToast('已停用家庭云同步，当前仅保存在本机');
+}
+
+function copyFamilyShareLink() {
+  const cfg = getCloudConfig();
+  if (!cfg) {
+    alert('请先填写并保存云同步设置！');
+    return;
+  }
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
+  let baseUrl = `${window.location.origin}${window.location.pathname}`;
+  if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+    baseUrl = `https://${cfg.owner}.github.io/${cfg.repo}/`;
+  }
+  const inviteUrl = `${baseUrl}?sync_key=${encodeURIComponent(encoded)}`;
+  navigator.clipboard.writeText(inviteUrl).then(() => {
+    showToast('📲 家人一键同步专属链接已复制！快发到家庭微信群吧！');
+  }).catch(() => {
+    prompt('请复制以下家人专属配对链接发到微信：', inviteUrl);
+  });
+}
+
+async function manualCloudPull() {
+  showToast('🔄 正在从云端同步家人最新记录...');
+  const ok = await syncWithGitHubCloud(false);
+  if (ok) showToast('✨ 已同步到最新家庭记录！');
+}
+
+// 智能记录级合并：防止爸爸和妈妈同时记录时互相覆盖
+function mergeBabyStates(local, remote) {
+  if (!remote || !Array.isArray(remote.records)) return local;
+
+  // 若本地还是初始演示数据，而云端已经是真实宝宝数据，直接以云端为准
+  if (local.isDemo && remote.isDemo === false) {
+    return remote;
+  }
+  if (remote.isDemo && local.isDemo === false) {
+    return local;
+  }
+
+  const deletedSet = new Set([
+    ...(local.deletedIds || []),
+    ...(remote.deletedIds || [])
+  ]);
+
+  const recordMap = new Map();
+  [...(remote.records || []), ...(local.records || [])].forEach(r => {
+    if (r && r.id && !deletedSet.has(r.id)) {
+      recordMap.set(r.id, r);
+    }
+  });
+
+  const mergedRecords = Array.from(recordMap.values()).sort(
+    (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+  );
+
+  // 合并每日护理打卡
+  const mergedChecklist = { ...(remote.dailyChecklist || {}) };
+  Object.keys(local.dailyChecklist || {}).forEach(day => {
+    mergedChecklist[day] = {
+      ...(mergedChecklist[day] || {}),
+      ...(local.dailyChecklist[day] || {})
+    };
+  });
+
+  const localNewer = (local.updatedAt || 0) >= (remote.updatedAt || 0);
+
+  return {
+    isDemo: localNewer ? local.isDemo : remote.isDemo,
+    updatedAt: Math.max(local.updatedAt || 0, remote.updatedAt || 0, Date.now()),
+    deletedIds: Array.from(deletedSet).slice(-500),
+    profile: localNewer ? local.profile : (remote.profile || local.profile),
+    records: mergedRecords,
+    dailyChecklist: mergedChecklist
+  };
+}
+
+async function syncWithGitHubCloud(pushLocal = false, silent = false) {
+  const cfg = getCloudConfig();
+  if (!cfg || isCloudSyncing) return false;
+
+  isCloudSyncing = true;
+  if (!silent) updateCloudSyncHeaderUI('🔄 云端同步中...');
+
+  const apiUrl = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data/baby_data.json`;
+  const headers = {
+    'Authorization': `Bearer ${cfg.token}`,
+    'Accept': 'application/vnd.github+json'
+  };
+
+  try {
+    // 1. 拉取云端最新的 data/baby_data.json 和它的 sha
+    const getRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(cfg.branch)}&_t=${Date.now()}`, {
+      headers,
+      cache: 'no-store'
+    });
+
+    let remoteSha = null;
+    let remoteState = null;
+
+    if (getRes.status === 200) {
+      const fileInfo = await getRes.json();
+      remoteSha = fileInfo.sha;
+      if (fileInfo.content) {
+        const cleanBase64 = fileInfo.content.replace(/\s/g, '');
+        const jsonStr = decodeURIComponent(escape(atob(cleanBase64)));
+        remoteState = JSON.parse(jsonStr);
+      }
+    } else if (getRes.status !== 404) {
+      throw new Error(`GitHub API 状态码 ${getRes.status}，请检查仓库名或 Token 权限`);
+    }
+
+    // 2. 与本地记录进行无损合并
+    if (remoteState) {
+      appState = mergeBabyStates(appState, remoteState);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      renderAll();
+    }
+
+    // 3. 如果需要推送更新（或者云端还没有 data/baby_data.json 文件），写回 GitHub
+    if (pushLocal || !remoteSha) {
+      const contentStr = JSON.stringify(appState, null, 2);
+      const base64Content = btoa(unescape(encodeURIComponent(contentStr)));
+      const body = {
+        message: `🍼 更新宝宝成长记录 (${new Date().toLocaleString('zh-CN')})`,
+        content: base64Content,
+        branch: cfg.branch
+      };
+      if (remoteSha) body.sha = remoteSha;
+
+      const putRes = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (!putRes.ok) {
+        throw new Error(`写入云端失败 (${putRes.status})`);
+      }
+    }
+
+    const nowHM = formatTimeHM(new Date().toISOString());
+    updateCloudSyncHeaderUI(`🟢 云同步已连接 (${nowHM})`);
+    isCloudSyncing = false;
+    return true;
+  } catch (err) {
+    console.warn('GitHub 云端同步异常:', err);
+    updateCloudSyncHeaderUI('⚠️ 云同步失败 (点击检查)');
+    if (!silent) {
+      alert('连接 GitHub 云端失败：' + err.message + '\n请确认：\n1. GitHub 上已创建该仓库\n2. Token 勾选了 repo (或 Contents Read & Write) 权限');
+    }
+    isCloudSyncing = false;
+    return false;
+  }
 }
 
 // 启动应用

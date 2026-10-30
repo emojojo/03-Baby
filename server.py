@@ -68,10 +68,11 @@ class ReusableHTTPServer(HTTPServer):
 if __name__ == "__main__":
     os.makedirs(DATA_DIR, exist_ok=True)
     url = f"http://127.0.0.1:{PORT}"
-    server = ReusableHTTPServer(("127.0.0.1", PORT), CandyBabyHandler)
+    server = ReusableHTTPServer(("0.0.0.0", PORT), CandyBabyHandler)
     print("=" * 56, flush=True)
     print("🍬 糖果宝宝 · 新生儿成长与健康看板已启动！", flush=True)
-    print(f"👉 浏览器访问地址: {url}", flush=True)
+    print(f"💻 本机访问地址: {url}", flush=True)
+    print(f"📱 家里手机 Wi-Fi 同步地址: http://192.168.31.6:{PORT}", flush=True)
     print(f"💾 本地数据自动保存路径: {DATA_FILE}", flush=True)
     print("=" * 56, flush=True)
     try:
