@@ -1498,12 +1498,16 @@ function switchModalCategory(cat, prefill = {}) {
         <input type="text" id="c_careItem" class="form-input" value="☀️ 补充维生素 D3 (400IU)" required />
         <div class="preset-chips" style="margin-top:8px;">
           ${[
-            '🌿 肚脐碘伏消毒护理',
-            '🎊 肚脐自然脱落啦！',
-            '🛁 温水洗澡 + 抚触按摩',
-            '🌞 晒太阳退黄 (15分钟)',
+            '🥛 补充乳糖酶',
             '🦠 补充益生菌',
+            '🐟 补充 DHA',
+            '🩸 补充铁剂',
+            '🌿 肚脐碘伏消毒护理',
+            '🛁 温水洗澡 + 抚触按摩',
+            '🧼 洗脸 / 鼻清洁 / 剪指甲',
+            '🌞 晒太阳退黄 (15分钟)',
             '🍑 涂护臀膏 / 晾屁屁',
+            '🎊 肚脐自然脱落啦！',
             '💉 接种乙肝疫苗 / 卡介苗',
             '😊 第一次对爸爸妈妈微笑'
           ].map(tag =>
@@ -1999,9 +2003,13 @@ function mergeBabyStates(local, remote) {
     ...(remote.deletedIds || [])
   ]);
 
+  const isRealMode = local.isDemo === false || remote.isDemo === false;
+  const demoIdPattern = /_-?\d+_(f|d|j|s|g|c)\d*$/;
+
   const recordMap = new Map();
   [...(remote.records || []), ...(local.records || [])].forEach(r => {
     if (r && r.id && !deletedSet.has(r.id)) {
+      if (isRealMode && demoIdPattern.test(r.id)) return; // 自动剔除虚拟演示数据
       recordMap.set(r.id, r);
     }
   });
