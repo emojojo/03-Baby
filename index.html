@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="糖果宝宝" />
   <meta name="theme-color" content="#FFF9F5" />
   <title>糖果宝宝 · 新生儿全能成长与健康看板</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=20261030_4" />
 </head>
 <body>
   <div class="candy-ribbon"></div>
@@ -348,67 +348,71 @@
       <!-- Right Sidebar: Live Timers, Daily Checklist, Smart Reference -->
       <div>
         <!-- Live Stopwatch for Nursing & Sleep -->
-        <section class="candy-panel">
-          <div class="panel-title" style="margin-bottom: 14px;">
-            <span class="icon-bubble" style="background: var(--candy-lavender-light);">⏱️</span>
-            实时喂奶 / 睡眠秒表计时器
-          </div>
-
-          <div class="timer-widget">
-            <div class="timer-top">
-              <span class="timer-title" id="timerModeTitle">🤱 选择计时项目（解放双手）</span>
-              <button class="btn btn-soft btn-sm" onclick="resetLiveTimer()" style="padding:3px 10px; font-size:0.74rem;">重置</button>
+        <section class="candy-panel sidebar-panel">
+          <div class="sidebar-top-block">
+            <div class="panel-title" style="margin-bottom: 14px;">
+              <span class="icon-bubble" style="background: var(--candy-lavender-light);">⏱️</span>
+              实时喂奶 / 睡眠秒表计时器
             </div>
-            <div class="timer-display" id="liveTimerDisplay">00:00:00</div>
-            <div class="timer-controls">
-              <button class="timer-btn" id="timerBtnLeft" onclick="toggleLiveTimer('left')">👈 左乳亲喂</button>
-              <button class="timer-btn" id="timerBtnRight" onclick="toggleLiveTimer('right')">👉 右乳亲喂</button>
-              <button class="timer-btn" id="timerBtnSleep" onclick="toggleLiveTimer('sleep')">💤 哄睡计时</button>
+
+            <div class="timer-widget">
+              <div class="timer-top">
+                <span class="timer-title" id="timerModeTitle">🤱 选择计时项目（解放双手）</span>
+                <button class="btn btn-soft btn-sm" onclick="resetLiveTimer()" style="padding:3px 10px; font-size:0.74rem;">重置</button>
+              </div>
+              <div class="timer-display" id="liveTimerDisplay">00:00:00</div>
+              <div class="timer-controls">
+                <button class="timer-btn" id="timerBtnLeft" onclick="toggleLiveTimer('left')">👈 左乳亲喂</button>
+                <button class="timer-btn" id="timerBtnRight" onclick="toggleLiveTimer('right')">👉 右乳亲喂</button>
+                <button class="timer-btn" id="timerBtnSleep" onclick="toggleLiveTimer('sleep')">💤 哄睡计时</button>
+              </div>
+              <button class="btn btn-pink" id="timerFinishBtn" style="width:100%; margin-top:10px; display:none;" onclick="finishAndSaveTimer()">
+                ✅ 结束计时并自动生成记录
+              </button>
             </div>
-            <button class="btn btn-pink" id="timerFinishBtn" style="width:100%; margin-top:10px; display:none;" onclick="finishAndSaveTimer()">
-              ✅ 结束计时并自动生成记录
-            </button>
+
+            <!-- Today's Daily Care Checklist -->
+            <div class="panel-title" style="margin-bottom: 12px; font-size: 1rem;">
+              <span class="icon-bubble" style="background: var(--candy-mint-light); width:28px; height:28px; font-size:0.95rem;">✅</span>
+              今日必做护理打卡 (<span id="checklistDateLabel">今日</span>)
+            </div>
+            <div class="checklist-grid" id="dailyChecklistGrid"></div>
           </div>
 
-          <!-- Today's Daily Care Checklist -->
-          <div class="panel-title" style="margin-bottom: 12px; font-size: 1rem;">
-            <span class="icon-bubble" style="background: var(--candy-mint-light); width:28px; height:28px; font-size:0.95rem;">✅</span>
-            今日必做护理打卡 (<span id="checklistDateLabel">今日</span>)
-          </div>
-          <div class="checklist-grid" id="dailyChecklistGrid"></div>
+          <div class="sidebar-guides-block">
+            <!-- Smart Feeding & Jaundice Reference Assistant -->
+            <div class="guide-card" style="background: var(--candy-pink-soft); border-color: #FFC2D6; margin-top:0;">
+              <h5 style="color: var(--candy-pink-dark);">🍼 智能奶量计算器（按当前体重）</h5>
+              <p id="smartMilkGuideText">
+                正在根据宝宝体重计算每日推荐总奶量与单次奶量...
+              </p>
+            </div>
 
-          <!-- Smart Feeding & Jaundice Reference Assistant -->
-          <div class="guide-card" style="background: var(--candy-pink-soft); border-color: #FFC2D6;">
-            <h5 style="color: var(--candy-pink-dark);">🍼 智能奶量计算器（按当前体重）</h5>
-            <p id="smartMilkGuideText">
-              正在根据宝宝体重计算每日推荐总奶量与单次奶量...
-            </p>
-          </div>
+            <div class="guide-card" style="background: var(--candy-lavender-soft); border-color: #DDD6FE; margin-bottom:12px;">
+              <h5 style="color: var(--candy-lavender-dark);">💊 新生儿维生素补充贴士 (D3 / AD / K1)</h5>
+              <p>
+                • <strong>🩸 维生素 K1</strong>：预防新生儿维生素K缺乏性出血症（纯母乳宝宝尤为重要，按医院医嘱定期口服滴剂或肌注）。<br/>
+                • <strong>☀️ 维生素 D3 & 💧 维生素 AD</strong>：促进钙吸收与视网膜/免疫发育（通常每日1次，若当天已喂含充足D3的复合AD，一般不重复叠加同日过量D3，可按儿保医嘱每日或单双日交替服用）。
+              </p>
+            </div>
 
-          <div class="guide-card" style="background: var(--candy-lavender-soft); border-color: #DDD6FE; margin-bottom:12px;">
-            <h5 style="color: var(--candy-lavender-dark);">💊 新生儿维生素补充贴士 (D3 / AD / K1)</h5>
-            <p>
-              • <strong>🩸 维生素 K1</strong>：预防新生儿维生素K缺乏性出血症（纯母乳宝宝尤为重要，按医院医嘱定期口服滴剂或肌注）。<br/>
-              • <strong>☀️ 维生素 D3 & 💧 维生素 AD</strong>：促进钙吸收与视网膜/免疫发育（通常每日1次，若当天已喂含充足D3的复合AD，一般不重复叠加同日过量D3，可按儿保医嘱每日或单双日交替服用）。
-            </p>
-          </div>
+            <div class="guide-card">
+              <h5>🌞 新生儿黄疸监测贴士</h5>
+              <p>
+                • <strong>生理性黄疸</strong>：通常出生后 2~3 天出现，4~6 天达高峰（足月儿一般 &lt;12.9~15 mg/dL），7~10 天逐渐消退。<br/>
+                • <strong>单位换算</strong>：1 mg/dL ≈ 17.1 μmol/L。<br/>
+                • <strong>加速退黄秘诀</strong>：<strong>多吃多排</strong>！保证每天充足奶量和 6~8 次以上湿尿布及顺畅排便，胆红素主要随大便排出。
+              </p>
+            </div>
 
-          <div class="guide-card">
-            <h5>🌞 新生儿黄疸监测贴士</h5>
-            <p>
-              • <strong>生理性黄疸</strong>：通常出生后 2~3 天出现，4~6 天达高峰（足月儿一般 &lt;12.9~15 mg/dL），7~10 天逐渐消退。<br/>
-              • <strong>单位换算</strong>：1 mg/dL ≈ 17.1 μmol/L。<br/>
-              • <strong>加速退黄秘诀</strong>：<strong>多吃多排</strong>！保证每天充足奶量和 6~8 次以上湿尿布及顺畅排便，胆红素主要随大便排出。
-            </p>
-          </div>
-
-          <div class="guide-card" style="background: var(--candy-sky-soft); border-color: #BAE6FD; margin-top:12px;">
-            <h5 style="color: var(--candy-sky-dark);">💩 新生儿便便颜色健康信号灯</h5>
-            <p>
-              • <strong>墨绿色（出生1~3天）</strong>：正常胎便，逐渐转为黄绿色过渡便。<br/>
-              • <strong>金黄色 / 黄色糊状</strong>：健康母乳/配方奶便便。<br/>
-              • <strong>⚠️ 警惕颜色</strong>：若出现<strong>灰白色/陶土色</strong>（警惕胆道问题）、<strong>鲜红色血便</strong>，请及时拍照并就医。
-            </p>
+            <div class="guide-card" style="background: var(--candy-sky-soft); border-color: #BAE6FD; margin-top:12px;">
+              <h5 style="color: var(--candy-sky-dark);">💩 新生儿便便颜色健康信号灯</h5>
+              <p>
+                • <strong>墨绿色（出生1~3天）</strong>：正常胎便，逐渐转为黄绿色过渡便。<br/>
+                • <strong>金黄色 / 黄色糊状</strong>：健康母乳/配方奶便便。<br/>
+                • <strong>⚠️ 警惕颜色</strong>：若出现<strong>灰白色/陶土色</strong>（警惕胆道问题）、<strong>鲜红色血便</strong>，请及时拍照并就医。
+              </p>
+            </div>
           </div>
         </section>
       </div>
