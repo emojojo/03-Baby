@@ -26,6 +26,7 @@ let appState = {
 let currentChartDays = 7;
 let currentLogFilter = 'all';
 let currentModalCategory = 'feed';
+let currentMilestoneStageFilter = 'all';
 
 // 实时计时器状态
 let liveTimer = {
@@ -48,6 +49,62 @@ const CARE_CHECKLIST_ITEMS = [
   { id: 'butt', icon: '🍑', label: '晾屁屁 / 涂护臀膏' },
   { id: 'tummy', icon: '🐣', label: '抬头 / 趴趴练习' }
 ];
+
+// 宝宝成长大事记 · 人生第一次里程碑预设库
+const MILESTONE_PRESETS = [
+  // 👶 新生儿期 (0~1个月)
+  { id: 'ms_birth', stage: 'newborn', stageLabel: '👶 新生儿期', icon: '🐣', title: '平安降生破壳日', keyword: '降生' },
+  { id: 'ms_meconium', stage: 'newborn', stageLabel: '👶 新生儿期', icon: '💩', title: '排出人生第一次胎便', keyword: '胎便' },
+  { id: 'ms_bath', stage: 'newborn', stageLabel: '👶 新生儿期', icon: '🛁', title: '人生第一次洗澡', keyword: '第一次洗澡' },
+  { id: 'ms_cord', stage: 'newborn', stageLabel: '👶 新生儿期', icon: '🌿', title: '脐带自然脱落啦！', keyword: '脐带' },
+  { id: 'ms_smile', stage: 'newborn', stageLabel: '👶 新生儿期', icon: '😊', title: '第一次对爸爸妈妈微笑', keyword: '微笑' },
+  { id: 'ms_jaundice', stage: 'newborn', stageLabel: '👶 新生儿期', icon: '🌞', title: '新生儿黄疸顺利退清', keyword: '退清' },
+  { id: 'ms_eye', stage: 'newborn', stageLabel: '👶 新生儿期', icon: '👀', title: '第一次专注注视追视', keyword: '追视' },
+  { id: 'ms_fullmoon', stage: 'newborn', stageLabel: '👶 新生儿期', icon: '🌕', title: '满月纪念日 (30天)', keyword: '满月' },
+
+  // 🐣 婴儿期 (2~6个月)
+  { id: 'ms_head_up', stage: 'infant', stageLabel: '🐣 婴儿期', icon: '🐣', title: '第一次稳稳抬头 90°', keyword: '抬头' },
+  { id: 'ms_coo', stage: 'infant', stageLabel: '🐣 婴儿期', icon: '🗣️', title: '第一次“啊、喔”咿呀学语', keyword: '咿呀' },
+  { id: 'ms_laugh', stage: 'infant', stageLabel: '🐣 婴儿期', icon: '😂', title: '第一次咯咯笑出声', keyword: '笑出声' },
+  { id: 'ms_roll', stage: 'infant', stageLabel: '🐣 婴儿期', icon: '🔄', title: '第一次学会自己翻身', keyword: '翻身' },
+  { id: 'ms_grasp', stage: 'infant', stageLabel: '🐣 婴儿期', icon: '✊', title: '第一次主动伸手抓玩具', keyword: '抓' },
+  { id: 'ms_100days', stage: 'infant', stageLabel: '🐣 婴儿期', icon: '💯', title: '百天纪念日 (100天)', keyword: '百天' },
+  { id: 'ms_solid_food', stage: 'infant', stageLabel: '🐣 婴儿期', icon: '🥣', title: '第一次品尝辅食米粉', keyword: '辅食' },
+  { id: 'ms_first_tooth', stage: 'infant', stageLabel: '🐣 婴儿期', icon: '🦷', title: '长出第一颗小乳牙', keyword: '乳牙' },
+
+  // 🧸 爬行学步期 (7~18个月)
+  { id: 'ms_sit', stage: 'toddler', stageLabel: '🧸 爬行学步', icon: '🧘', title: '第一次独立稳坐', keyword: '稳坐' },
+  { id: 'ms_crawl', stage: 'toddler', stageLabel: '🧸 爬行学步', icon: '🐛', title: '第一次手膝向前爬行', keyword: '爬行' },
+  { id: 'ms_clap', stage: 'toddler', stageLabel: '🧸 爬行学步', icon: '👋', title: '第一次挥手拜拜 / 欢迎', keyword: '拜拜' },
+  { id: 'ms_call', stage: 'toddler', stageLabel: '🧸 爬行学步', icon: '💖', title: '第一次清楚喊“妈妈/爸爸”', keyword: '妈妈' },
+  { id: 'ms_stand', stage: 'toddler', stageLabel: '🧸 爬行学步', icon: '🧍', title: '第一次独自站立', keyword: '站立' },
+  { id: 'ms_1year', stage: 'toddler', stageLabel: '🧸 爬行学步', icon: '🎂', title: '一周岁生日 & 抓周礼', keyword: '周岁' },
+  { id: 'ms_walk', stage: 'toddler', stageLabel: '🧸 爬行学步', icon: '👣', title: '人生第一次独立迈步走路！', keyword: '走路' },
+  { id: 'ms_spoon', stage: 'toddler', stageLabel: '🧸 爬行学步', icon: '🥄', title: '第一次自己拿勺子吃饭', keyword: '吃饭' }
+];
+
+// 根据记录时间自动计算宝宝当时的出生天数/月龄徽章
+function getBabyAgeBadgeAt(isoStr) {
+  if (!isoStr || !appState.profile || !appState.profile.birthDateTime) return '成长纪念';
+  const birthDatePart = appState.profile.birthDateTime.slice(0, 10);
+  const eventDatePart = isoStr.slice(0, 10);
+  const bParts = birthDatePart.split('-').map(Number);
+  const eParts = eventDatePart.split('-').map(Number);
+  if (bParts.length < 3 || eParts.length < 3) return '成长纪念';
+  const bUtc = Date.UTC(bParts[0], bParts[1] - 1, bParts[2]);
+  const eUtc = Date.UTC(eParts[0], eParts[1] - 1, eParts[2]);
+  const diffDays = Math.round((eUtc - bUtc) / (24 * 3600 * 1000));
+  if (diffDays < 0) return '出生前';
+  const dayNum = diffDays + 1;
+  if (dayNum === 1) return '出生第 1 天 · 破壳日';
+  if (dayNum === 30) return '出生第 30 天 · 满月';
+  if (dayNum === 100) return '出生第 100 天 · 百天';
+  if (dayNum === 365) return '出生第 365 天 · 一周岁';
+  if (dayNum <= 100) return `出生第 ${dayNum} 天`;
+  const months = Math.floor(diffDays / 30);
+  const remDays = diffDays % 30;
+  return `出生第 ${dayNum} 天 (${months}个月${remDays > 0 ? remDays + '天' : ''})`;
+}
 
 // 工具函数：日期格式化
 function pad2(n) {
@@ -243,6 +300,38 @@ function generateDemoData() {
         note: '已喂1粒D3，肚脐干爽无渗出'
       });
     }
+
+    // 示例成长大事记记录
+    if (cfg.dayOffset === -6) {
+      const mt = new Date(baseDay);
+      mt.setHours(8, 30, 0, 0);
+      records.push({
+        id: uid() + '_-6_m1',
+        category: 'milestone',
+        timestamp: toDateTimeLocalStr(mt),
+        milestoneTitle: '平安降生破壳日',
+        milestoneIcon: '🐣',
+        milestoneStage: '👶 新生儿期',
+        milestoneWitness: '👨‍👩‍👧 爸爸妈妈共同见证',
+        careItem: '🐣 平安降生破壳日',
+        note: '3.25kg 小天使平安来到爸爸妈妈身边，哭声超响亮！'
+      });
+    }
+    if (cfg.dayOffset === -2) {
+      const mt = new Date(baseDay);
+      mt.setHours(11, 20, 0, 0);
+      records.push({
+        id: uid() + '_-2_m1',
+        category: 'milestone',
+        timestamp: toDateTimeLocalStr(mt),
+        milestoneTitle: '第一次对爸爸妈妈微笑',
+        milestoneIcon: '😊',
+        milestoneStage: '👶 新生儿期',
+        milestoneWitness: '👨‍👩‍👧 爸爸妈妈共同见证',
+        careItem: '😊 第一次对爸爸妈妈微笑',
+        note: '喝饱奶拍完嗝后，嘴角弯弯露出了超治愈的笑容～'
+      });
+    }
   });
 
   // 按时间倒序排列
@@ -403,6 +492,7 @@ function renderAll() {
   renderDailyChecklist();
   renderAllCharts();
   render24hRhythm();
+  renderMilestonesSection();
   renderLogList();
 }
 
@@ -1079,6 +1169,9 @@ function render24hRhythm() {
       } else if (r.category === 'jaundice') {
         bg = '#FBBF24'; icon = '🌞';
         title = `🌞 ${formatTimeHM(r.timestamp)} 黄疸 ${r.valueMgDl} mg/dL`;
+      } else if (r.category === 'milestone') {
+        bg = '#F59E0B'; icon = r.milestoneIcon || '🏆';
+        title = `🏆 ${formatTimeHM(r.timestamp)} 大事记: ${r.milestoneTitle || r.careItem}`;
       } else if (r.category === 'care' || r.category === 'growth') {
         bg = '#34D399'; icon = '💊';
         title = `💊 ${formatTimeHM(r.timestamp)} ${r.careItem || ('体重 ' + r.weightKg + 'kg')}`;
@@ -1100,6 +1193,116 @@ function render24hRhythm() {
   const sHours = (dayRecs.filter(r => r.category === 'sleep').reduce((s, r) => s + (Number(r.durationMin) || 0), 0) / 60).toFixed(1);
 
   summaryEl.innerHTML = `📅 <strong>${targetDate} 全天汇总</strong>：共喂奶 <strong>${fCount}</strong> 次（总计 <strong>${fMl} ml</strong>） · 换尿布 <strong>${dCount}</strong> 次 · 累计睡眠 <strong>${sHours}</strong> 小时`;
+}
+
+// ============================================================================
+// 6.5 宝宝成长大事记 · 人生第一次纪念册
+// ============================================================================
+function getMilestoneRecords() {
+  return appState.records.filter(r => {
+    if (r.category === 'milestone') return true;
+    // 兼容之前通过护理记录的里程碑
+    if (r.category === 'care' && r.careItem && /(脱落|第一次|满月|百天|周岁)/.test(r.careItem)) return true;
+    return false;
+  });
+}
+
+function setMilestoneStageFilter(stage, btnEl) {
+  currentMilestoneStageFilter = stage;
+  document.querySelectorAll('#milestoneStageTabs .candy-tab').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+  renderMilestonesSection();
+}
+
+function renderMilestonesSection() {
+  const cardsContainer = document.getElementById('milestoneCardsContainer');
+  const wallContainer = document.getElementById('milestoneQuickWall');
+  const badgeEl = document.getElementById('milestoneUnlockedBadge');
+  if (!cardsContainer || !wallContainer) return;
+
+  const milestones = getMilestoneRecords();
+  if (badgeEl) {
+    badgeEl.textContent = `已点亮 ${milestones.length} 项`;
+  }
+
+  // 1. 渲染已点亮的大事记纪念卡片
+  if (milestones.length === 0) {
+    cardsContainer.innerHTML = `
+      <div class="milestone-empty-box">
+        🌟 <strong>还没有记录宝宝的成长大事记哦～</strong><br/>
+        无论是<strong>脐带脱落、第一次微笑、第一次抬头、第一次翻身、长第一颗牙、第一次叫爸妈、第一次走路</strong>，都可以点击下方快捷标签或右上角「✨ 新增大事记」永久珍藏！
+      </div>
+    `;
+  } else {
+    cardsContainer.innerHTML = milestones.map(r => {
+      const icon = r.milestoneIcon || '🏆';
+      const title = r.milestoneTitle || (r.careItem ? r.careItem.replace(/^[^\u4e00-\u9fa5A-Za-z0-9]+\s*/, '') : '成长大事记');
+      const ageBadge = getBabyAgeBadgeAt(r.timestamp);
+      const stage = r.milestoneStage || '🌟 成长里程碑';
+      const witness = r.milestoneWitness || '👨‍👩‍👧 家人共同见证';
+      const dtStr = (r.timestamp || '').replace('T', ' ');
+      return `
+        <div class="milestone-card">
+          <div class="milestone-card-left">
+            <div class="milestone-card-icon">${icon}</div>
+            <div class="milestone-card-body">
+              <div class="milestone-card-title">
+                <span>${title}</span>
+                <span class="milestone-age-pill">🎂 ${ageBadge}</span>
+              </div>
+              <div class="milestone-meta-row">
+                <span>🕒 ${dtStr}</span>
+                <span>·</span>
+                <span>${stage}</span>
+                <span>·</span>
+                <span>${witness}</span>
+              </div>
+              ${r.note ? `<div class="milestone-note">💬 ${r.note}</div>` : ''}
+            </div>
+          </div>
+          <button class="log-delete-btn" onclick="deleteRecord('${r.id}')" title="删除此条大事记">🗑️</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 2. 渲染快捷点亮墙
+  const filteredPresets = MILESTONE_PRESETS.filter(
+    p => currentMilestoneStageFilter === 'all' || p.stage === currentMilestoneStageFilter
+  );
+
+  wallContainer.innerHTML = filteredPresets.map(p => {
+    const matchedRec = milestones.find(r => {
+      const t = (r.milestoneTitle || r.careItem || '');
+      return t.includes(p.title) || (p.keyword && t.includes(p.keyword));
+    });
+    const isUnlocked = !!matchedRec;
+    const statusHtml = isUnlocked
+      ? `<span class="chip-status">✓ ${getBabyAgeBadgeAt(matchedRec.timestamp).split(' · ')[0]}</span>`
+      : `<span style="font-size:0.72rem; color:var(--candy-pink-dark); opacity:0.85;">+点亮</span>`;
+
+    return `
+      <div class="milestone-wall-chip ${isUnlocked ? 'unlocked' : ''}"
+           onclick="quickOpenMilestonePreset('${p.id}')">
+        <span>${p.icon}</span>
+        <span>${p.title}</span>
+        ${statusHtml}
+      </div>
+    `;
+  }).join('');
+}
+
+function quickOpenMilestonePreset(presetId) {
+  const preset = MILESTONE_PRESETS.find(p => p.id === presetId);
+  if (!preset) {
+    openRecordModal('milestone');
+    return;
+  }
+  openRecordModal('milestone', {
+    title: preset.title,
+    icon: preset.icon,
+    stage: preset.stageLabel
+  });
 }
 
 // ============================================================================
@@ -1223,6 +1426,16 @@ function formatRecordDisplay(r) {
       desc: `头围 ${r.headCm || '--'} cm`
     };
   }
+  if (r.category === 'milestone') {
+    return {
+      icon: r.milestoneIcon || '🏆',
+      bg: 'var(--candy-lemon-light)',
+      title: r.milestoneTitle || r.careItem || '成长大事记',
+      badge: `🎂 ${getBabyAgeBadgeAt(r.timestamp)}`,
+      badgeColor: 'lemon',
+      desc: [r.milestoneStage || '成长高光', r.milestoneWitness || '家人共同见证'].join(' · ')
+    };
+  }
   return {
     icon: '💊',
     bg: 'var(--candy-peach-light)',
@@ -1268,9 +1481,17 @@ function switchModalCategory(cat, prefill = {}) {
     jaundice: '🌞 记录新生儿黄疸值',
     sleep: '💤 记录宝宝睡眠',
     growth: '📏 记录体重、身长与体温',
-    care: '💊 记录护理与成长大事记'
+    care: '💊 记录维生素与日常护理',
+    milestone: '🏆 记录宝宝成长大事记 · 第一次'
   };
   document.getElementById('recordModalTitle').textContent = titleMap[cat] || '新增记录';
+
+  const noteInput = document.getElementById('recordNote');
+  if (noteInput) {
+    noteInput.placeholder = cat === 'milestone'
+      ? '写下当时的可爱细节或爸爸妈妈的寄语吧（例如：今天换衣服时肚脐小痂皮完整脱落啦！）'
+      : '例如：精神很好、拍出两个大嗝、涂了护臀膏...';
+  }
 
   const box = document.getElementById('modalDynamicFields');
 
@@ -1539,7 +1760,94 @@ function switchModalCategory(cat, prefill = {}) {
         </div>
       </div>
     `;
+  } else if (cat === 'milestone') {
+    const defaultTitle = prefill.title || '脐带自然脱落啦！';
+    const defaultIcon = prefill.icon || '🌿';
+    const defaultStage = prefill.stage || '👶 新生儿期';
+    const tsVal = document.getElementById('recordTimestamp').value || toDateTimeLocalStr(new Date());
+    const agePreview = getBabyAgeBadgeAt(tsVal);
+    const emojiList = ['🌿', '😊', '🐣', '🔄', '🦷', '💖', '👣', '🌕', '💯', '🎂', '🛁', '🏆'];
+
+    box.innerHTML = `
+      <div id="m_agePreviewBox" style="background:linear-gradient(90deg, #FFFBEB, #FFF0F5); border:1.5px solid #FCD34D; border-radius:12px; padding:8px 12px; margin-bottom:14px; font-size:0.83rem; color:var(--text-main);">
+        🎂 对应宝宝日龄：<strong style="color:var(--candy-pink-dark);">${agePreview}</strong>（修改上方时间可补录任意一天的第一次）
+      </div>
+
+      <div class="form-group">
+        <label>🌟 常用成长第一次（点击一键填入，也可在下方自由输入）</label>
+        <div class="preset-chips" style="margin-top:4px;">
+          ${MILESTONE_PRESETS.map(p =>
+            `<span class="preset-chip" onclick="selectMilestoneModalPreset('${p.icon}', '${p.title}', '${p.stageLabel}')">${p.icon} ${p.title}</span>`
+          ).join('')}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>🏆 大事记 / 人生第一次标题</label>
+        <input type="text" id="m_title" class="form-input" value="${defaultTitle}" placeholder="例如：脐带自然脱落啦！ / 第一次独立迈步走路" required />
+      </div>
+
+      <div class="form-group">
+        <label>✨ 选择纪念图标</label>
+        <input type="hidden" id="m_icon" value="${defaultIcon}" />
+        <div class="emoji-picker-grid" id="m_emojiGrid">
+          ${emojiList.map(em =>
+            `<div class="emoji-swatch ${em === defaultIcon ? 'selected' : ''}" onclick="selectMilestoneEmoji(this, '${em}')">${em}</div>`
+          ).join('')}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>成长阶段分类</label>
+          <select id="m_stage" class="form-select">
+            <option value="👶 新生儿期" ${defaultStage.includes('新生儿') ? 'selected' : ''}>👶 新生儿期 (0~1个月)</option>
+            <option value="🐣 婴儿期" ${defaultStage.includes('婴儿') ? 'selected' : ''}>🐣 婴儿期 (2~6个月)</option>
+            <option value="🧸 爬行学步" ${defaultStage.includes('爬行') ? 'selected' : ''}>🧸 爬行学步 (7~18个月)</option>
+            <option value="🗣️ 语言与社交">🗣️ 语言与社交</option>
+            <option value="🦷 萌牙与辅食">🦷 萌牙与辅食</option>
+            <option value="🎂 成长纪念日">🎂 成长纪念日</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>幸福见证人</label>
+          <select id="m_witness" class="form-select">
+            <option value="👨‍👩‍👧 爸爸妈妈共同见证">👨‍👩‍👧 爸爸妈妈共同见证</option>
+            <option value="🏡 全家人共同见证">🏡 全家人共同见证</option>
+            <option value="👩 妈妈见证">👩 妈妈见证</option>
+            <option value="👨 爸爸见证">👨 爸爸见证</option>
+          </select>
+        </div>
+      </div>
+    `;
   }
+}
+
+function updateModalAgePreview() {
+  const previewEl = document.getElementById('m_agePreviewBox');
+  const tsEl = document.getElementById('recordTimestamp');
+  if (previewEl && tsEl && tsEl.value) {
+    const ageStr = getBabyAgeBadgeAt(tsEl.value);
+    previewEl.innerHTML = `🎂 对应宝宝日龄：<strong style="color:var(--candy-pink-dark);">${ageStr}</strong>（修改上方时间可补录任意一天的第一次）`;
+  }
+}
+
+function selectMilestoneModalPreset(icon, title, stage) {
+  const titleEl = document.getElementById('m_title');
+  const iconEl = document.getElementById('m_icon');
+  const stageEl = document.getElementById('m_stage');
+  if (titleEl) titleEl.value = title;
+  if (iconEl) iconEl.value = icon;
+  if (stageEl && stage) stageEl.value = stage;
+  document.querySelectorAll('#m_emojiGrid .emoji-swatch').forEach(el => {
+    el.classList.toggle('selected', el.textContent === icon);
+  });
+}
+
+function selectMilestoneEmoji(el, emoji) {
+  document.getElementById('m_icon').value = emoji;
+  el.parentElement.querySelectorAll('.emoji-swatch').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
 }
 
 function selectCareQuick(btn, textVal) {
@@ -1652,13 +1960,19 @@ async function submitRecordForm(e) {
       if (upper.includes('肚脐')) appState.dailyChecklist[recDateStr].cord = true;
       if (upper.includes('洗澡')) appState.dailyChecklist[recDateStr].bath = true;
     }
+  } else if (currentModalCategory === 'milestone') {
+    rec.milestoneTitle = document.getElementById('m_title').value.trim() || '成长大事记';
+    rec.milestoneIcon = document.getElementById('m_icon').value || '🏆';
+    rec.milestoneStage = document.getElementById('m_stage').value || '👶 新生儿期';
+    rec.milestoneWitness = document.getElementById('m_witness').value || '👨‍👩‍👧 爸爸妈妈共同见证';
+    rec.careItem = `${rec.milestoneIcon} ${rec.milestoneTitle}`;
   }
 
   appState.records.unshift(rec);
   await persistState();
   closeRecordModal();
   renderAll();
-  showToast('🍬 已成功保存宝宝记录！');
+  showToast(currentModalCategory === 'milestone' ? '🏆 已点亮宝宝人生大事记！' : '🍬 已成功保存宝宝记录！');
 }
 
 // ============================================================================
@@ -2003,7 +2317,7 @@ function mergeBabyStates(local, remote) {
   ]);
 
   const isRealMode = local.isDemo === false || remote.isDemo === false;
-  const demoIdPattern = /^rec_.*_-?[0-6]_(f|d|j|s|g|c)\d*$/;
+  const demoIdPattern = /^rec_.*_-?[0-6]_(f|d|j|s|g|c|m)\d*$/;
 
   const recordMap = new Map();
   [...(remote.records || []), ...(local.records || [])].forEach(r => {
