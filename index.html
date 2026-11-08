@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="糖果宝宝" />
   <meta name="theme-color" content="#FFF9F5" />
   <title>糖果宝宝 · 新生儿全能成长与健康看板</title>
-  <link rel="stylesheet" href="styles.css?v=20261030_4" />
+  <link rel="stylesheet" href="styles.css?v=20261108_1" />
 </head>
 <body>
   <div class="candy-ribbon"></div>
@@ -136,6 +136,14 @@
         <div class="quick-text">
           <h3>维生素与护理</h3>
           <p>维D3 / 维AD / 维K1 / 脐带 / 洗澡</p>
+        </div>
+      </button>
+
+      <button class="quick-card-btn milestone" onclick="openRecordModal('milestone')">
+        <div class="quick-icon">🏆</div>
+        <div class="quick-text">
+          <h3>成长大事记</h3>
+          <p>脐带脱落 / 第一次笑 / 抬头 / 走路</p>
         </div>
       </button>
     </section>
@@ -301,6 +309,7 @@
                   <span class="legend-item"><i class="legend-dot" style="background:#C4B5FD"></i>💤 睡眠段</span>
                   <span class="legend-item"><i class="legend-dot" style="background:#FBBF24"></i>🌞 测黄疸</span>
                   <span class="legend-item"><i class="legend-dot" style="background:#34D399"></i>💊 护理</span>
+                  <span class="legend-item"><i class="legend-dot" style="background:#F59E0B"></i>🏆 大事记</span>
                 </div>
               </div>
               <div class="rhythm-container">
@@ -312,6 +321,40 @@
                 <div id="rhythmSummaryText" style="font-size:0.8rem; color:var(--text-secondary);"></div>
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- Baby Growth Milestones & Firsts Gallery -->
+        <section class="candy-panel milestone-panel" id="milestonePanel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span class="icon-bubble" style="background: var(--candy-lemon-light);">🏆</span>
+              宝宝成长大事记 · 人生第一次纪念册
+              <span class="kpi-badge lemon" id="milestoneUnlockedBadge" style="margin-left:4px;">已点亮 0 项</span>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <button class="btn btn-pink btn-sm" onclick="openRecordModal('milestone')">✨ 新增大事记</button>
+            </div>
+          </div>
+
+          <!-- Unlocked Milestones Cards Grid -->
+          <div class="milestone-cards-grid" id="milestoneCardsContainer"></div>
+
+          <!-- Quick Unlock Preset Wall -->
+          <div class="milestone-preset-box">
+            <div class="milestone-preset-header">
+              <div class="milestone-preset-title">
+                🌟 <strong>成长里程碑快捷点亮墙</strong>
+                <span>（点击下方任意标签，1秒记录宝宝的高光时刻）</span>
+              </div>
+              <div class="candy-tabs" id="milestoneStageTabs">
+                <button class="candy-tab active" onclick="setMilestoneStageFilter('all', this)">全部阶段</button>
+                <button class="candy-tab" onclick="setMilestoneStageFilter('newborn', this)">👶 新生儿(0-1月)</button>
+                <button class="candy-tab" onclick="setMilestoneStageFilter('infant', this)">🐣 婴儿期(2-6月)</button>
+                <button class="candy-tab" onclick="setMilestoneStageFilter('toddler', this)">🧸 爬行学步(7-18月)</button>
+              </div>
+            </div>
+            <div class="milestone-wall-chips" id="milestoneQuickWall"></div>
           </div>
         </section>
 
@@ -329,7 +372,7 @@
           </div>
 
           <div class="filter-bar">
-            <div class="candy-tabs" id="logFilterTabs">
+            <div class="candy-tabs" id="logFilterTabs" style="flex-wrap:wrap;">
               <button class="candy-tab active" onclick="setLogFilter('all', this)">全部</button>
               <button class="candy-tab" onclick="setLogFilter('feed', this)">🍼 喂奶</button>
               <button class="candy-tab" onclick="setLogFilter('diaper', this)">🧷 尿布</button>
@@ -337,6 +380,7 @@
               <button class="candy-tab" onclick="setLogFilter('sleep', this)">💤 睡眠</button>
               <button class="candy-tab" onclick="setLogFilter('growth', this)">📏 体征</button>
               <button class="candy-tab" onclick="setLogFilter('care', this)">💊 护理</button>
+              <button class="candy-tab" onclick="setLogFilter('milestone', this)">🏆 大事记</button>
             </div>
             <span id="logCountLabel" style="font-size:0.8rem; color:var(--text-muted); font-weight:700;">共 0 条记录</span>
           </div>
@@ -430,19 +474,20 @@
       </div>
 
       <!-- Category Switcher inside Modal -->
-      <div class="candy-tabs" style="width:100%; justify-content:space-between; margin-bottom:16px;" id="modalCategoryTabs">
+      <div class="candy-tabs" style="width:100%; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap;" id="modalCategoryTabs">
         <button class="candy-tab" data-cat="feed" onclick="switchModalCategory('feed')">🍼 喂奶</button>
         <button class="candy-tab" data-cat="diaper" onclick="switchModalCategory('diaper')">🧷 尿布</button>
         <button class="candy-tab" data-cat="jaundice" onclick="switchModalCategory('jaundice')">🌞 黄疸</button>
         <button class="candy-tab" data-cat="sleep" onclick="switchModalCategory('sleep')">💤 睡眠</button>
         <button class="candy-tab" data-cat="growth" onclick="switchModalCategory('growth')">📏 体征</button>
         <button class="candy-tab" data-cat="care" onclick="switchModalCategory('care')">💊 护理</button>
+        <button class="candy-tab" data-cat="milestone" onclick="switchModalCategory('milestone')">🏆 大事记</button>
       </div>
 
       <form id="recordForm" onsubmit="submitRecordForm(event)">
         <div class="form-group">
           <label>🕒 记录时间</label>
-          <input type="datetime-local" id="recordTimestamp" class="form-input" required />
+          <input type="datetime-local" id="recordTimestamp" class="form-input" oninput="updateModalAgePreview()" required />
         </div>
 
         <!-- Dynamic Fields Container -->
@@ -575,6 +620,6 @@
   <!-- Toast Notification -->
   <div class="candy-toast" id="candyToast">✨ 已保存记录！</div>
 
-  <script src="app.js?v=20261030_7"></script>
+  <script src="app.js?v=20261108_1"></script>
 </body>
 </html>
