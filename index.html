@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="糖果宝宝" />
   <meta name="theme-color" content="#FFF9F5" />
   <title>糖果宝宝 · 新生儿全能成长与健康看板</title>
-  <link rel="stylesheet" href="styles.css?v=20261108_1" />
+  <link rel="stylesheet" href="styles.css?v=20261124_1" />
 </head>
 <body>
   <div class="candy-ribbon"></div>
@@ -157,9 +157,14 @@
           <span class="kpi-badge pink" id="kpiMilkCountBadge">0 次</span>
         </div>
         <div class="kpi-number" id="kpiMilkTotal">0<small>ml</small></div>
+        <div class="milk-kpi-compare" id="kpiMilkCompareRow">
+          <span class="milk-cmp-pill breast" id="kpiBreastMilkPill">🤱 瓶喂母乳 0 ml</span>
+          <span class="milk-cmp-pill formula" id="kpiFormulaMilkPill">🍼 配方牛奶 0 ml</span>
+        </div>
         <div class="kpi-progress-wrap">
-          <div class="kpi-progress-bar">
-            <div class="kpi-progress-fill" id="kpiMilkProgress" style="width: 0%; background: linear-gradient(90deg, #FF6B9D, #FF8E72);"></div>
+          <div class="kpi-progress-bar" style="display:flex;">
+            <div class="kpi-progress-fill" id="kpiBreastProgress" style="width: 0%; background: #F59E0B; border-radius:999px 0 0 999px;" title="今日瓶喂母乳占比"></div>
+            <div class="kpi-progress-fill" id="kpiMilkProgress" style="width: 0%; background: linear-gradient(90deg, #FF6B9D, #FF8E72);" title="今日配方牛奶占比"></div>
           </div>
           <div class="kpi-sub">
             <span id="kpiMilkSubLeft">亲喂 0 分钟</span>
@@ -247,13 +252,14 @@
             <!-- Chart 1: Daily Milk Intake & Feed Count -->
             <div class="chart-box">
               <div class="chart-header">
-                <h4>🍼 每日吃奶量 & 喂养次数趋势</h4>
+                <h4>🍼 每日吃奶量 & 母乳/牛奶对比</h4>
                 <div class="chart-legend">
-                  <span class="legend-item"><i class="legend-dot" style="background:#FF6B9D"></i>配方奶(ml)</span>
-                  <span class="legend-item"><i class="legend-dot" style="background:#FF9EBB"></i>瓶喂母乳(ml)</span>
+                  <span class="legend-item"><i class="legend-dot" style="background:#F59E0B"></i>🤱 瓶喂母乳(ml)</span>
+                  <span class="legend-item"><i class="legend-dot" style="background:#FF6B9D"></i>🍼 配方牛奶(ml)</span>
                   <span class="legend-item"><i class="legend-dot" style="background:#7C3AED; border-radius:50%"></i>喂奶次数</span>
                 </div>
               </div>
+              <div class="milk-chart-summary" id="milkCompareSummaryBar"></div>
               <div class="svg-chart-container" id="milkChartContainer"></div>
             </div>
 
@@ -620,6 +626,6 @@
   <!-- Toast Notification -->
   <div class="candy-toast" id="candyToast">✨ 已保存记录！</div>
 
-  <script src="app.js?v=20261108_1"></script>
+  <script src="app.js?v=20261124_1"></script>
 </body>
 </html>
