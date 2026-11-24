@@ -649,14 +649,35 @@ function renderKpiCards() {
 
   // 1. 今日吃奶 KPI
   const todayFeeds = todayRecs.filter(r => r.category === 'feed');
-  const totalMilk = todayFeeds.reduce((sum, r) => sum + (Number(r.amountMl) || 0), 0);
+  const todayBreastMl = todayFeeds
+    .filter(r => r.feedType === 'breast_bottle')
+    .reduce((sum, r) => sum + (Number(r.amountMl) || 0), 0);
+  const todayFormulaMl = todayFeeds
+    .filter(r => r.feedType !== 'breast_bottle')
+    .reduce((sum, r) => sum + (Number(r.amountMl) || 0), 0);
+  const totalMilk = todayBreastMl + todayFormulaMl;
   const totalNursingMin = todayFeeds.reduce((sum, r) => sum + (Number(r.leftMin) || 0) + (Number(r.rightMin) || 0), 0);
   const targetMilk = Math.round(getLatestWeight() * (Number(appState.profile.milkFactor) || 150));
   const milkPct = Math.min(100, Math.round((totalMilk / Math.max(1, targetMilk)) * 100));
 
+  const breastSharePct = totalMilk > 0 ? Math.round((todayBreastMl / totalMilk) * 100) : 0;
+  const formulaSharePct = totalMilk > 0 ? (100 - breastSharePct) : 0;
+  const breastBarW = Math.min(100, Math.round((todayBreastMl / Math.max(1, targetMilk)) * 100));
+  const formulaBarW = Math.min(100 - breastBarW, Math.round((todayFormulaMl / Math.max(1, targetMilk)) * 100));
+
   document.getElementById('kpiMilkCountBadge').textContent = `今日 ${todayFeeds.length} 顿`;
   document.getElementById('kpiMilkTotal').innerHTML = `${totalMilk}<small>ml</small>`;
-  document.getElementById('kpiMilkProgress').style.width = `${milkPct}%`;
+  const breastPillEl = document.getElementById('kpiBreastMilkPill');
+  const formulaPillEl = document.getElementById('kpiFormulaMilkPill');
+  if (breastPillEl) {
+    breastPillEl.textContent = `🤱 瓶喂母乳 ${todayBreastMl} ml${totalMilk > 0 ? ` (${breastSharePct}%)` : ''}`;
+  }
+  if (formulaPillEl) {
+    formulaPillEl.textContent = `🍼 配方牛奶 ${todayFormulaMl} ml${totalMilk > 0 ? ` (${formulaSharePct}%)` : ''}`;
+  }
+  const breastProgEl = document.getElementById('kpiBreastProgress');
+  if (breastProgEl) breastProgEl.style.width = `${breastBarW}%`;
+  document.getElementById('kpiMilkProgress').style.width = `${formulaBarW}%`;
   document.getElementById('kpiMilkSubLeft').textContent = `亲喂 ${totalNursingMin} 分钟`;
   document.getElementById('kpiMilkSubRight').textContent = `目标 ${targetMilk}ml (${milkPct}%)`;
 
@@ -807,9 +828,10 @@ function renderAllCharts() {
   renderGrowthChart();
 }
 
-// 图表 1：每日吃奶量堆叠柱状图 + 喂奶次数折线图
+// 图表 1：每日吃奶量堆叠柱状图 + 瓶喂母乳与配方牛奶数字对比 + 喂奶次数折线图
 function renderMilkChart() {
   const container = document.getElementById('milkChartContainer');
+  const summaryBar = document.getElementById('milkCompareSummaryBar');
   const dates = getDateSeries(currentChartDays);
   const dailyData = dates.map(dStr => {
     const recs = appState.records.filter(r => r.category === 'feed' && r.timestamp.startsWith(dStr));
@@ -829,7 +851,21 @@ function renderMilkChart() {
     };
   });
 
-  const W = 520, H = 220, padL = 42, padR = 32, padT = 22, padB = 30;
+  // 渲染区间累计对比条
+  const periodBreastMl = dailyData.reduce((s, d) => s + d.breastMl, 0);
+  const periodFormulaMl = dailyData.reduce((s, d) => s + d.formulaMl, 0);
+  const periodTotalMl = periodBreastMl + periodFormulaMl;
+  const pBreastPct = periodTotalMl > 0 ? Math.round((periodBreastMl / periodTotalMl) * 100) : 0;
+  const pFormulaPct = periodTotalMl > 0 ? (100 - pBreastPct) : 0;
+  if (summaryBar) {
+    summaryBar.innerHTML = `
+      <span>📊 近 ${currentChartDays} 天总计 <strong>${periodTotalMl} ml</strong></span>
+      <span style="color:#B45309;">🤱 瓶喂母乳: <strong>${periodBreastMl} ml</strong> (${pBreastPct}%)</span>
+      <span style="color:#D94678;">🍼 配方牛奶: <strong>${periodFormulaMl} ml</strong> (${pFormulaPct}%)</span>
+    `;
+  }
+
+  const W = 520, H = 248, padL = 44, padR = 26, padT = 22, padB = 54;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
 
@@ -838,7 +874,7 @@ function renderMilkChart() {
   const maxCount = Math.max(12, ...dailyData.map(d => d.count));
 
   const stepX = plotW / dates.length;
-  const barW = Math.min(26, Math.max(8, stepX * 0.52));
+  const barW = Math.min(30, Math.max(10, stepX * 0.56));
 
   let gridSvg = '';
   for (let i = 0; i <= 4; i++) {
@@ -850,6 +886,17 @@ function renderMilkChart() {
     `;
   }
 
+  // 底部对齐数据表左侧行标题（日期 / 瓶母 / 牛奶）
+  const rowYDate = padT + plotH + 14;
+  const rowYBreast = padT + plotH + 29;
+  const rowYFormula = padT + plotH + 44;
+  gridSvg += `
+    <line x1="${padL}" y1="${padT + plotH + 19}" x2="${W - padR}" y2="${padT + plotH + 19}" stroke="#F5E8EF" stroke-width="1" />
+    <text x="${padL - 5}" y="${rowYDate}" text-anchor="end" font-size="9" font-weight="700" fill="#9E8B9F">日期</text>
+    <text x="${padL - 5}" y="${rowYBreast}" text-anchor="end" font-size="9" font-weight="800" fill="#B45309">瓶母</text>
+    <text x="${padL - 5}" y="${rowYFormula}" text-anchor="end" font-size="9" font-weight="800" fill="#D94678">牛奶</text>
+  `;
+
   // 推荐日奶量参考线
   const targetY = padT + plotH - (targetMilk / maxMilk) * plotH;
   const targetLineSvg = `
@@ -860,6 +907,7 @@ function renderMilkChart() {
   let barsSvg = '';
   let linePoints = [];
   let dotsSvg = '';
+  const showTableNums = dates.length <= 14;
 
   dailyData.forEach((d, idx) => {
     const cx = padL + idx * stepX + stepX / 2;
@@ -868,13 +916,25 @@ function renderMilkChart() {
     const fy = padT + plotH - fH;
     const by = fy - bH;
 
+    const showColText = showTableNums || idx % Math.ceil(dates.length / 8) === 0;
+    const insideFormulaText = (showTableNums && d.formulaMl > 0 && fH >= 14)
+      ? `<text x="${cx}" y="${fy + fH / 2 + 3.5}" text-anchor="middle" font-size="8.8" font-weight="800" fill="#FFFFFF">${d.formulaMl}</text>`
+      : '';
+    const insideBreastText = (showTableNums && d.breastMl > 0 && bH >= 14)
+      ? `<text x="${cx}" y="${by + bH / 2 + 3.5}" text-anchor="middle" font-size="8.8" font-weight="800" fill="#FFFFFF">${d.breastMl}</text>`
+      : '';
+
     barsSvg += `
       <g>
-        <title>${d.date}\n总奶量: ${d.totalMl} ml (配方奶 ${d.formulaMl}ml / 瓶喂母乳 ${d.breastMl}ml)\n喂奶次数: ${d.count} 次</title>
+        <title>${d.date}\n总奶量: ${d.totalMl} ml\n🤱 瓶喂母乳: ${d.breastMl} ml\n🍼 配方牛奶: ${d.formulaMl} ml\n喂奶次数: ${d.count} 次</title>
         <rect x="${cx - barW / 2}" y="${fy}" width="${barW}" height="${Math.max(0, fH)}" rx="4" fill="#FF6B9D" />
-        <rect x="${cx - barW / 2}" y="${by}" width="${barW}" height="${Math.max(0, bH)}" rx="4" fill="#FF9EBB" />
-        ${d.totalMl > 0 && dates.length <= 14 ? `<text x="${cx}" y="${by - 5}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#D94678">${d.totalMl}</text>` : ''}
-        ${(dates.length <= 10 || idx % Math.ceil(dates.length / 8) === 0) ? `<text x="${cx}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#6E5A70">${d.label}</text>` : ''}
+        <rect x="${cx - barW / 2}" y="${by}" width="${barW}" height="${Math.max(0, bH)}" rx="4" fill="#F59E0B" />
+        ${insideFormulaText}
+        ${insideBreastText}
+        ${d.totalMl > 0 && showTableNums ? `<text x="${cx}" y="${by - 5}" text-anchor="middle" font-size="9.5" font-weight="800" fill="#3D2C3E">${d.totalMl}</text>` : ''}
+        ${showColText ? `<text x="${cx}" y="${rowYDate}" text-anchor="middle" font-size="9.5" font-weight="600" fill="#6E5A70">${d.label}</text>` : ''}
+        ${showColText ? `<text x="${cx}" y="${rowYBreast}" text-anchor="middle" font-size="9.2" font-weight="800" fill="${d.breastMl > 0 ? '#B45309' : '#C9B8C0'}">${d.breastMl}</text>` : ''}
+        ${showColText ? `<text x="${cx}" y="${rowYFormula}" text-anchor="middle" font-size="9.2" font-weight="800" fill="${d.formulaMl > 0 ? '#D94678' : '#C9B8C0'}">${d.formulaMl}</text>` : ''}
       </g>
     `;
 
@@ -1187,12 +1247,15 @@ function render24hRhythm() {
 
   track.innerHTML = html;
 
-  const fCount = dayRecs.filter(r => r.category === 'feed').length;
-  const fMl = dayRecs.filter(r => r.category === 'feed').reduce((s, r) => s + (Number(r.amountMl) || 0), 0);
+  const fRecs = dayRecs.filter(r => r.category === 'feed');
+  const fCount = fRecs.length;
+  const fBreastMl = fRecs.filter(r => r.feedType === 'breast_bottle').reduce((s, r) => s + (Number(r.amountMl) || 0), 0);
+  const fFormulaMl = fRecs.filter(r => r.feedType !== 'breast_bottle').reduce((s, r) => s + (Number(r.amountMl) || 0), 0);
+  const fMl = fBreastMl + fFormulaMl;
   const dCount = dayRecs.filter(r => r.category === 'diaper').length;
   const sHours = (dayRecs.filter(r => r.category === 'sleep').reduce((s, r) => s + (Number(r.durationMin) || 0), 0) / 60).toFixed(1);
 
-  summaryEl.innerHTML = `📅 <strong>${targetDate} 全天汇总</strong>：共喂奶 <strong>${fCount}</strong> 次（总计 <strong>${fMl} ml</strong>） · 换尿布 <strong>${dCount}</strong> 次 · 累计睡眠 <strong>${sHours}</strong> 小时`;
+  summaryEl.innerHTML = `📅 <strong>${targetDate} 全天汇总</strong>：共喂奶 <strong>${fCount}</strong> 次，总计 <strong>${fMl} ml</strong>（<span style="color:#B45309;font-weight:700;">🤱瓶喂母乳 ${fBreastMl} ml</span> vs <span style="color:#D94678;font-weight:700;">🍼配方牛奶 ${fFormulaMl} ml</span>） · 换尿布 <strong>${dCount}</strong> 次 · 累计睡眠 <strong>${sHours}</strong> 小时`;
 }
 
 // ============================================================================
