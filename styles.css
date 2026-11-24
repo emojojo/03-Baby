@@ -1498,3 +1498,56 @@ body {
   background: var(--candy-pink-light);
   transform: scale(1.08);
 }
+
+/* ==========================================================================
+   瓶喂母乳 vs 配方牛奶 直观数字对比样式
+   ========================================================================== */
+.milk-kpi-compare {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 8px;
+}
+
+.milk-cmp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.milk-cmp-pill.breast {
+  background: #FFFBEB;
+  border: 1.5px solid #FCD34D;
+  color: #B45309;
+}
+
+.milk-cmp-pill.formula {
+  background: #FFF0F5;
+  border: 1.5px solid #FFC2D6;
+  color: #D94678;
+}
+
+.milk-chart-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: linear-gradient(90deg, #FFFBEB 0%, #FFF0F5 100%);
+  border: 1.5px solid #FDE68A;
+  border-radius: 12px;
+  padding: 7px 12px;
+  margin-bottom: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+#milkChartContainer svg {
+  height: 248px;
+}
